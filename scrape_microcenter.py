@@ -1,60 +1,77 @@
 import requests
 import json
+import datetime
 from bs4 import BeautifulSoup
 
-def scrape():
-    req = requests.get('https://www.microcenter.com/category/4294966937/graphics-cards?storeid=055&rpp=96')
+def scrape(source):
+    req = requests.get(source)
     soup = BeautifulSoup(req.content, 'html.parser')
     productGrid = soup.find('article', {'id': 'productGrid'}).find('ul')
     items = productGrid.find_all('li')
 
-    data = {}
+    data = {
+        'timestamp': datetime.datetime.now().strftime('%m-%d-%Y %H:%M:%S'),
+        'source': source,
+        'gpus': {}
+    }
     for item in items:
-        link = item.find_next('a')
+        left = item.find('div', {'class': 'result_left'})
+        right = item.find('div', {'class': 'result_right'})
+
+        link = left.find_next('a')
         link2 = link.find_next('a')
+        count_span = right.find('span', {'class': 'inventoryCnt'})
+
+        stock = 'n/a'
+        if count_span is not None:
+            stock = count_span.contents[0].strip()
 
         parsed_name = parse_name(link['data-name'])
 
-        if parsed_name is None:
-            continue
-
-        data[link['data-id']] = {
+        data['gpus'][link['data-id']] = {
             'manufacturer': link['data-brand'],
             'name': link['data-name'],
             'price': link['data-price'],
             'brand': parsed_name['brand'],
             'line': parsed_name['line'],
             'model': parsed_name['model'],
+            'stock': stock,
             'link': f'https://www.microcenter.com{link2["href"]}'
         }
 
     return data
 
 def parse_name(name):
-    tokens = name.split(' ')
+    tokens = iter(name.split(' '))
     data = {}
 
+    cur = next(tokens)
+
     # get brand
-    data['brand'] = tokens[0]
+    data['brand'] = cur
 
-    # check for GeForce RTX cards
-    if tokens[1] == 'GeForce' and tokens[2] == 'RTX':
-        data['line'] = 'GeForce RTX'
-    # check for Radeon RX cards
-    elif tokens[1] == 'Radeon' and tokens[2] == 'RX':
-        data['line'] = 'Radeon RX'
-    else:
-        # we don't want any cards that arent RTX or RX
-        return None
+    # build line name
+    cur = next(tokens)
+    line = ''
+    while cur.isalpha() == True:
+        line = f'{line} {cur}'
+        cur = next(tokens)
 
-    # get model of card
-    data['model'] = tokens[3]
+    # build model name
+    model = cur
+    cur = next(tokens)
+    if cur == 'XT' or cur == 'Ti':
+        model = f'{model} {cur}'
+        cur = next(tokens)
+
+    data['line'] = line
+    data['model'] = model
 
     return data
 
 
 def main():
-    data = scrape()
+    data = scrape('https://www.microcenter.com/category/4294966937/graphics-cards?storeid=055&rpp=96')
     print(json.dumps(data, indent=2, sort_keys=True))
 
 if __name__ == "__main__":
