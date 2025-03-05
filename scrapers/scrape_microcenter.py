@@ -1,7 +1,10 @@
 import requests
 import json
 import datetime
+import argparse
 from bs4 import BeautifulSoup
+
+# https://www.microcenter.com/category/4294966937/graphics-cards?storeid=055&rpp=96
 
 def scrape(source):
     req = requests.get(source)
@@ -71,8 +74,17 @@ def parse_name(name):
 
 
 def main():
-    data = scrape('https://www.microcenter.com/category/4294966937/graphics-cards?storeid=055&rpp=96')
-    print(json.dumps(data, indent=2, sort_keys=True))
+    parser = argparse.ArgumentParser(description='Scrape Microcenter website for GPU listings')
+    parser.add_argument('-s', '--source', required=True, dest='source', action='store', help='Source URL to scrape')
+    parser.add_argument('-p', '--pretty', dest='pretty', action='store_true', help='Format the result JSON for human readability')
+    args = parser.parse_args()
+
+    data = scrape(args.source)
+
+    if args.pretty:
+        print(json.dumps(data, indent=2, sort_keys=True))
+    else:
+        print(json.dumps(data))
 
 if __name__ == "__main__":
     main()
