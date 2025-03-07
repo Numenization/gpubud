@@ -9,7 +9,7 @@ import (
 )
 
 func HandleRoot(w http.ResponseWriter, r *http.Request) {
-	_, err := scrape()
+	scrape_data, err := Scrape()
 	if err != nil {
 		errorString := fmt.Sprintf("An error occured handling web request: %s", err.Error())
 		log.Println(errorString)
@@ -17,6 +17,8 @@ func HandleRoot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tmpl := template.Must(template.ParseFiles("./templates/index.html"))
-	tmpl.Execute(w, nil)
-	// io.WriteString(w, results)
+	tmpl_data := map[string]ScrapeData{
+		"ScrapeData": scrape_data,
+	}
+	tmpl.Execute(w, tmpl_data)
 }

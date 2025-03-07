@@ -8,5 +8,20 @@
 </head>
 <body>
     <h1>GPU Bud</h1>
+    <table>
+        <caption>Microcenter GPU Listings</caption>
+        <tr>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Stock</th>
+        </tr>
+        {{ range .ScrapeData.GPUs }}
+        <tr>
+            <td><a href="{{ .Link }}">{{ .Manufacturer }} {{ .Line }} {{ .Model }}</a></td>
+            <td>${{ .Price }}</td>
+            <td>{{ .Stock }}</td>
+        </tr>
+        {{ end }}
+    </table>
 </body>
 </html>
