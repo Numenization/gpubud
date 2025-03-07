@@ -4,8 +4,6 @@ import datetime
 import argparse
 from bs4 import BeautifulSoup
 
-# https://www.microcenter.com/category/4294966937/graphics-cards?storeid=055&rpp=96
-
 def scrape(source):
     req = requests.get(source)
     soup = BeautifulSoup(req.content, 'html.parser')
