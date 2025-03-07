@@ -15,7 +15,7 @@ def scrape(source):
     data = {
         'timestamp': datetime.datetime.now().strftime('%m-%d-%Y %H:%M:%S'),
         'source': source,
-        'gpus': {}
+        'gpus': []
     }
     for item in items:
         left = item.find('div', {'class': 'result_left'})
@@ -31,16 +31,17 @@ def scrape(source):
 
         parsed_name = parse_name(link['data-name'])
 
-        data['gpus'][link['data-id']] = {
+        data['gpus'].append({
             'manufacturer': link['data-brand'],
             'name': link['data-name'],
             'price': link['data-price'],
+            'id': link['data-id'],
             'brand': parsed_name['brand'],
             'line': parsed_name['line'],
             'model': parsed_name['model'],
             'stock': stock,
             'link': f'https://www.microcenter.com{link2["href"]}'
-        }
+        })
 
     return data
 
