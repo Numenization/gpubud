@@ -9,25 +9,6 @@ import (
 	"strconv"
 )
 
-type GPU struct {
-	ID           string `json:"id"`
-	Brand        string `json:"brand"`
-	Line         string `json:"line"`
-	Link         string `json:"link"`
-	Manufacturer string `json:"manufacturer"`
-	Model        string `json:"model"`
-	Name         string `json:"name"`
-	PriceString  string `json:"price"`
-	Stock        string `json:"stock"`
-	Price        float64
-}
-
-type ScrapeData struct {
-	GPUs      []*GPU
-	Source    string
-	Timestamp string
-}
-
 func ConvertPriceStrings(data *ScrapeData) error {
 	for _, gpu := range data.GPUs {
 		price, err := strconv.ParseFloat(gpu.PriceString, 64)
