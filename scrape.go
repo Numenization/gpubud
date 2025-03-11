@@ -47,5 +47,10 @@ func Scrape(env *Env) (ScrapeData, error) {
 		return data, fmt.Errorf("error in scraping microcenter: %s", convert_err.Error())
 	}
 
+	for _, gpu := range data.GPUs {
+		UpsertGPU(env, gpu)
+	}
+	UpdateMissingGPUs(env, data.GPUs)
+
 	return data, nil
 }

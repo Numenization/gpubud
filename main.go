@@ -14,12 +14,12 @@ type Env struct {
 }
 
 func InitEnvironment() (*Env, error) {
-	DB, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	DB, err := gorm.Open(sqlite.Open("gpubud.db"), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("error in environment initialization: %s", err.Error())
 	}
 
-	DB.AutoMigrate(&GPU{}, &ScrapeData{})
+	DB.AutoMigrate(&GPU{})
 
 	env := &Env{
 		DB: DB,
