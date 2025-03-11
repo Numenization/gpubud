@@ -3,34 +3,39 @@ package main
 import (
 	"fmt"
 	"html/template"
-	"io"
 	"log"
 	"net/http"
 	"time"
 )
 
+func GetGPUData(env *Env) ([]*GPU, error) {
+	var gpus []*GPU
+
+	if time.Since(env.LastScrapeTime).Minutes() < 5 {
+		dbGpus, err := GetAllGPUs(env)
+		if err != nil {
+			return nil, fmt.Errorf("error in retrieving GPU data from database: %s", err.Error())
+		}
+		gpus = dbGpus
+	} else {
+		scrape_data, err := Scrape(env)
+		if err != nil {
+			return nil, fmt.Errorf("error in scraping GPU data: %s", err.Error())
+		}
+
+		gpus = scrape_data.GPUs
+	}
+
+	return gpus, nil
+}
+
 func HandleRoot(env *Env) func(w http.ResponseWriter, r *http.Request) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		var gpus []*GPU
-		if time.Since(env.LastScrapeTime).Minutes() < 5 {
-			dbGpus, err := GetAllGPUs(env)
-			if err != nil {
-				errorString := fmt.Sprintf("An error occured getting GPUs from the database: %s", err.Error())
-				log.Println(errorString)
-				io.WriteString(w, errorString)
-				return
-			}
-			gpus = dbGpus
-		} else {
-			scrape_data, err := Scrape(env)
-			if err != nil {
-				errorString := fmt.Sprintf("An error occured handling web request: %s", err.Error())
-				log.Println(errorString)
-				io.WriteString(w, errorString)
-				return
-			}
-
-			gpus = scrape_data.GPUs
+		gpus, err := GetGPUData(env)
+		if err != nil {
+			log.Println("error in route root: ", err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		tmpl := template.Must(template.ParseFiles("./templates/index.html"))
