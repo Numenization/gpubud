@@ -24,4 +24,8 @@ go.work.sum
 # env file
 .env
 
+# database files
 *.db
+
+# air working directory
+tmp/
