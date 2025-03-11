@@ -14,21 +14,16 @@ import (
 // Gets GPU data from the database. If the last scrape time is within 5 minutes, the data will be retrieved from the database.
 // Otherwise, the data will be scraped from the Microcenter website.
 func GetGPUData(env *Env) ([]*GPU, error) {
-	var gpus []*GPU
-
-	if time.Since(env.LastScrapeTime).Minutes() < 5 {
-		dbGpus, err := GetAllGPUs(env)
-		if err != nil {
-			return nil, fmt.Errorf("error in retrieving GPU data from database: %s", err.Error())
-		}
-		gpus = dbGpus
-	} else {
-		scrape_data, err := Scrape(env)
+	if time.Since(env.LastScrapeTime).Minutes() > 5 {
+		_, err := Scrape(env)
 		if err != nil {
 			return nil, fmt.Errorf("error in scraping GPU data: %s", err.Error())
 		}
+	}
 
-		gpus = scrape_data.GPUs
+	gpus, err := GetAllGPUs(env)
+	if err != nil {
+		return nil, fmt.Errorf("error in retrieving GPU data from database: %s", err.Error())
 	}
 
 	return gpus, nil
