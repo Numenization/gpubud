@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// GPU is a struct that holds the data for a GPU
 type GPU struct {
 	gorm.Model
 	ID           string `json:"id" gorm:"primaryKey"`
@@ -21,16 +22,19 @@ type GPU struct {
 	Price        float64
 }
 
+// ScrapeData is a struct that holds the data scraped from the Microcenter website
 type ScrapeData struct {
 	GPUs      []*GPU
 	Source    string
 	Timestamp string
 }
 
+// Inserts or updates a GPU in the database
 func UpsertGPU(env *Env, gpu *GPU) {
 	env.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(gpu)
 }
 
+// Finds a GPU in the database by its ID
 func FindGPU(env *Env, id string) (*GPU, error) {
 	var gpu GPU
 	result := env.DB.First(&gpu, "id = ?", id)
@@ -40,6 +44,7 @@ func FindGPU(env *Env, id string) (*GPU, error) {
 	return &gpu, nil
 }
 
+// Gets all GPUs in the database
 func GetAllGPUs(env *Env) ([]*GPU, error) {
 	var gpus []*GPU
 	result := env.DB.Find(&gpus)

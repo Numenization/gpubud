@@ -11,6 +11,30 @@ import (
 	"time"
 )
 
+// Gets GPU data from the database. If the last scrape time is within 5 minutes, the data will be retrieved from the database.
+// Otherwise, the data will be scraped from the Microcenter website.
+func GetGPUData(env *Env) ([]*GPU, error) {
+	var gpus []*GPU
+
+	if time.Since(env.LastScrapeTime).Minutes() < 5 {
+		dbGpus, err := GetAllGPUs(env)
+		if err != nil {
+			return nil, fmt.Errorf("error in retrieving GPU data from database: %s", err.Error())
+		}
+		gpus = dbGpus
+	} else {
+		scrape_data, err := Scrape(env)
+		if err != nil {
+			return nil, fmt.Errorf("error in scraping GPU data: %s", err.Error())
+		}
+
+		gpus = scrape_data.GPUs
+	}
+
+	return gpus, nil
+}
+
+// Converts the price strings from the scraper to float64 values
 func ConvertPriceStrings(data *ScrapeData) error {
 	for _, gpu := range data.GPUs {
 		price, err := strconv.ParseFloat(gpu.PriceString, 64)
@@ -23,6 +47,7 @@ func ConvertPriceStrings(data *ScrapeData) error {
 	return nil
 }
 
+// Scrapes the Microcenter website for GPU data
 func Scrape(env *Env) (ScrapeData, error) {
 	log.Println("Attempting to update GPU list from scraper")
 
