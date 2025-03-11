@@ -15,7 +15,7 @@
             <th>Price</th>
             <th>Stock</th>
         </tr>
-        {{ range .ScrapeData.GPUs }}
+        {{ range .GPUs }}
         <tr>
             <td><a href="{{ .Link }}">{{ .Manufacturer }} {{ .Line }} {{ .ProductModel }}</a></td>
             <td>${{ .Price }}</td>

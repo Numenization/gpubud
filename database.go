@@ -40,6 +40,15 @@ func FindGPU(env *Env, id string) (*GPU, error) {
 	return &gpu, nil
 }
 
+func GetAllGPUs(env *Env) ([]*GPU, error) {
+	var gpus []*GPU
+	result := env.DB.Find(&gpus)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return gpus, nil
+}
+
 // Gets the GPUs in the database and compares it to another list of GPUs. Any GPU found in the database
 // but not in the given list will be assumed to be out of stock and will be updated in the database.
 func UpdateMissingGPUs(env *Env, gpu []*GPU) {

@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 )
 
 func ConvertPriceStrings(data *ScrapeData) error {
@@ -22,6 +24,8 @@ func ConvertPriceStrings(data *ScrapeData) error {
 }
 
 func Scrape(env *Env) (ScrapeData, error) {
+	log.Println("Attempting to update GPU list from scraper")
+
 	var data ScrapeData
 
 	// check to make sure we have the URL in our env
@@ -51,6 +55,8 @@ func Scrape(env *Env) (ScrapeData, error) {
 		UpsertGPU(env, gpu)
 	}
 	UpdateMissingGPUs(env, data.GPUs)
+
+	env.LastScrapeTime = time.Now()
 
 	return data, nil
 }

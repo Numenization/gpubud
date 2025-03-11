@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 type Env struct {
-	DB *gorm.DB
+	DB             *gorm.DB
+	LastScrapeTime time.Time
 }
 
 func InitEnvironment() (*Env, error) {
@@ -22,8 +24,11 @@ func InitEnvironment() (*Env, error) {
 	DB.AutoMigrate(&GPU{})
 
 	env := &Env{
-		DB: DB,
+		DB:             DB,
+		LastScrapeTime: time.Now(),
 	}
+
+	Scrape(env)
 
 	return env, nil
 }
