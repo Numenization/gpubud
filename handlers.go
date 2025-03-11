@@ -10,7 +10,7 @@ import (
 
 func HandleRoot(env *Env) func(w http.ResponseWriter, r *http.Request) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		scrape_data, err := Scrape()
+		scrape_data, err := Scrape(env)
 		if err != nil {
 			errorString := fmt.Sprintf("An error occured handling web request: %s", err.Error())
 			log.Println(errorString)

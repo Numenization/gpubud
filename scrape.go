@@ -21,7 +21,7 @@ func ConvertPriceStrings(data *ScrapeData) error {
 	return nil
 }
 
-func Scrape() (ScrapeData, error) {
+func Scrape(env *Env) (ScrapeData, error) {
 	var data ScrapeData
 
 	// check to make sure we have the URL in our env
