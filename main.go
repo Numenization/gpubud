@@ -21,7 +21,7 @@ func InitEnvironment() (*Env, error) {
 		return nil, fmt.Errorf("error in environment initialization: %s", err.Error())
 	}
 
-	DB.AutoMigrate(&GPU{})
+	DB.AutoMigrate(&GPU{}, &Price{})
 
 	env := &Env{
 		DB:             DB,

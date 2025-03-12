@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -22,6 +23,15 @@ type GPU struct {
 	Price        float64
 }
 
+// Price is a snapshot of the price of a GPU at a given time
+type Price struct {
+	gorm.Model
+	Price float64
+	GPUID string
+	GPU   *GPU
+	Time  time.Time
+}
+
 // ScrapeData is a struct that holds the data scraped from the Microcenter website
 type ScrapeData struct {
 	GPUs      []*GPU
@@ -29,9 +39,20 @@ type ScrapeData struct {
 	Timestamp string
 }
 
-// Inserts or updates a GPU in the database
+// Inserts or updates a GPU in the database and create a new price for the current time
 func UpsertGPU(env *Env, gpu *GPU) {
 	env.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(gpu)
+	CreatePrice(env, gpu)
+}
+
+func CreatePrice(env *Env, gpu *GPU) {
+	price := Price{
+		Price: gpu.Price,
+		GPUID: gpu.ID,
+		GPU:   gpu,
+		Time:  time.Now(),
+	}
+	env.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(&price)
 }
 
 // Finds a GPU in the database by its ID
