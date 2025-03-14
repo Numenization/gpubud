@@ -4,18 +4,37 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"slices"
 	"time"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
+type Callback struct {
+	ID       string
+	Function func(*Env) error
+}
+
 type Env struct {
 	DB              *gorm.DB
 	LastScrapeTime  time.Time
 	RunUpdateLoop   bool
 	UpdateSleepTime time.Duration
-	UpdateCallback  []func(*Env) error
+	UpdateCallback  []Callback
+}
+
+func (env *Env) AddUpdateCallback(id string, callback func(*Env) error) {
+	env.UpdateCallback = append(env.UpdateCallback, Callback{ID: id, Function: callback})
+}
+
+func (env *Env) RemoveUpdateCallback(id string) {
+	for i, cb := range env.UpdateCallback {
+		if cb.ID == id {
+			env.UpdateCallback = slices.Delete(env.UpdateCallback, i, i+1)
+			return
+		}
+	}
 }
 
 func InitEnvironment() (*Env, error) {
@@ -31,10 +50,10 @@ func InitEnvironment() (*Env, error) {
 		LastScrapeTime:  time.Now(),
 		RunUpdateLoop:   true,
 		UpdateSleepTime: 5 * time.Minute,
-		UpdateCallback: []func(*Env) error{
-			Scrape,
-		},
+		UpdateCallback:  []Callback{},
 	}
+
+	env.AddUpdateCallback("scrape", Scrape)
 
 	return env, nil
 }
@@ -49,7 +68,10 @@ func UpdateLoop(env *Env) {
 
 		// run update callbacks
 		for _, callback := range env.UpdateCallback {
-			callback(env)
+			callbackErr := callback.Function(env)
+			if callbackErr != nil {
+				log.Fatal(fmt.Errorf("error in update callback id: %s: %s", callback.ID, callbackErr.Error()))
+			}
 		}
 
 		gpus, err := GetAllGPUs(env)
