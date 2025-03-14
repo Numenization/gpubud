@@ -11,8 +11,11 @@ import (
 )
 
 type Env struct {
-	DB             *gorm.DB
-	LastScrapeTime time.Time
+	DB              *gorm.DB
+	LastScrapeTime  time.Time
+	RunUpdateLoop   bool
+	UpdateSleepTime time.Duration
+	UpdateCallback  []func(*Env) error
 }
 
 func InitEnvironment() (*Env, error) {
@@ -24,24 +27,54 @@ func InitEnvironment() (*Env, error) {
 	DB.AutoMigrate(&GPU{}, &Price{})
 
 	env := &Env{
-		DB:             DB,
-		LastScrapeTime: time.Now(),
+		DB:              DB,
+		LastScrapeTime:  time.Now(),
+		RunUpdateLoop:   true,
+		UpdateSleepTime: 5 * time.Minute,
+		UpdateCallback: []func(*Env) error{
+			Scrape,
+		},
 	}
-
-	Scrape(env)
 
 	return env, nil
 }
 
-func main() {
-	log.Println("Starting server")
+// Every 5 minutes, run the scraper to get the latest GPU data
+func UpdateLoop(env *Env) {
+	log.Println("Starting update loop")
 
+	for env.RunUpdateLoop {
+		// update GPU data
+		log.Println("Updating GPU data")
+
+		// run update callbacks
+		for _, callback := range env.UpdateCallback {
+			callback(env)
+		}
+
+		gpus, err := GetAllGPUs(env)
+		if err != nil {
+			log.Fatal("error in updating GPU data: ", err.Error())
+		}
+		log.Printf("New GPU data: %d GPUs in database\n", len(gpus))
+
+		// sleep 5 minutes
+		time.Sleep(env.UpdateSleepTime)
+	}
+
+	log.Println("Update loop stopped")
+}
+
+func main() {
+	log.Println("Initializing environment")
 	env, err := InitEnvironment()
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
+	log.Println("Starting server")
 	http.HandleFunc("/", HandleRoot(env))
+	go UpdateLoop(env)
 
 	log.Fatal(http.ListenAndServe(":8000", nil))
 }

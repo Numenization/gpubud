@@ -8,7 +8,7 @@ import (
 
 func HandleRoot(env *Env) func(w http.ResponseWriter, r *http.Request) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		gpus, err := GetGPUData(env)
+		gpus, err := GetAllGPUs(env)
 		if err != nil {
 			log.Println("error in route root: ", err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
