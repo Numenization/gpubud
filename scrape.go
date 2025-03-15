@@ -7,18 +7,16 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"strconv"
 	"time"
 )
 
 // Converts the price strings from the scraper to float64 values
 func ConvertPriceStrings(data *ScrapeData) error {
 	for _, gpu := range data.GPUs {
-		price, err := strconv.ParseFloat(gpu.PriceString, 64)
+		err := gpu.ConvertPriceString()
 		if err != nil {
 			return fmt.Errorf("error in converting GPU price strings: %s", err.Error())
 		}
-		gpu.Price = price
 	}
 
 	return nil

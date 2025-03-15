@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"gorm.io/gorm"
@@ -21,6 +23,16 @@ type GPU struct {
 	PriceString  string `json:"price"`
 	Stock        string `json:"stock"`
 	Price        float64
+}
+
+func (gpu *GPU) ConvertPriceString() error {
+	price, err := strconv.ParseFloat(gpu.PriceString, 64)
+	if err != nil {
+		return fmt.Errorf("error in converting GPU price strings: %s", err.Error())
+	}
+	gpu.Price = price
+
+	return nil
 }
 
 // Price is a snapshot of the price of a GPU at a given time
@@ -52,7 +64,7 @@ func CreatePrice(env *Env, gpu *GPU) {
 		GPU:   gpu,
 		Time:  time.Now(),
 	}
-	env.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(&price)
+	env.DB.Create(&price)
 }
 
 // Finds a GPU in the database by its ID
