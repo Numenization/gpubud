@@ -16,7 +16,7 @@
             <th>Stock</th>
         </tr>
         {{ range .GPUs }}
-        {{ if and (ne .Stock "0") (ne .Stock "n/a") }}
+        {{ if ne .Stock 0 }}
         <tr>
             <td><a href="{{ .Link }}">{{ .Manufacturer }} {{ .Line }} {{ .ProductModel }}</a></td>
             <td>${{ .Price }}</td>

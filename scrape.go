@@ -10,18 +10,6 @@ import (
 	"time"
 )
 
-// Converts the price strings from the scraper to float64 values
-func ConvertPriceStrings(data *ScrapeData) error {
-	for _, gpu := range data.GPUs {
-		err := gpu.ConvertPriceString()
-		if err != nil {
-			return fmt.Errorf("error in converting GPU price strings: %s", err.Error())
-		}
-	}
-
-	return nil
-}
-
 // Scrapes the Microcenter website for GPU data
 func Scrape(env *Env) error {
 	log.Println("Attempting to update GPU list from scraper")
@@ -43,10 +31,6 @@ func Scrape(env *Env) error {
 
 	// unpack the data from json format into a ScrapeData struct
 	convert_err := json.Unmarshal(out, &data)
-	if convert_err != nil {
-		return fmt.Errorf("error in scraping microcenter: %s", convert_err.Error())
-	}
-	convert_err = ConvertPriceStrings(&data)
 	if convert_err != nil {
 		return fmt.Errorf("error in scraping microcenter: %s", convert_err.Error())
 	}

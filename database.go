@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"strconv"
 	"time"
 
 	"gorm.io/gorm"
@@ -13,32 +11,22 @@ import (
 // GPU is a struct that holds the data for a GPU
 type GPU struct {
 	gorm.Model
-	ID           string `json:"id" gorm:"primaryKey"`
-	Brand        string `json:"brand"`
-	Line         string `json:"line"`
-	Link         string `json:"link"`
-	Manufacturer string `json:"manufacturer"`
-	ProductModel string `json:"model"`
-	Name         string `json:"name"`
-	PriceString  string `json:"price"`
-	Stock        string `json:"stock"`
-	Price        float64
-}
-
-func (gpu *GPU) ConvertPriceString() error {
-	price, err := strconv.ParseFloat(gpu.PriceString, 64)
-	if err != nil {
-		return fmt.Errorf("error in converting GPU price strings: %s", err.Error())
-	}
-	gpu.Price = price
-
-	return nil
+	ID           string  `json:"id" gorm:"primaryKey"`
+	Brand        string  `json:"brand"`
+	Line         string  `json:"line"`
+	Link         string  `json:"link"`
+	Manufacturer string  `json:"manufacturer"`
+	ProductModel string  `json:"model"`
+	Name         string  `json:"name"`
+	Stock        int32   `json:"stock"`
+	Price        float64 `json:"price"`
 }
 
 // Price is a snapshot of the price of a GPU at a given time
 type Price struct {
 	gorm.Model
 	Price float64
+	Stock int32
 	GPUID string
 	GPU   *GPU
 	Time  time.Time
@@ -103,7 +91,7 @@ func UpdateMissingGPUs(env *Env, gpu []*GPU) {
 		}
 		if !found {
 			log.Println("GPU out of stock: ", dbGPU.ID)
-			dbGPU.Stock = "0"
+			dbGPU.Stock = 0
 			env.DB.Save(&dbGPU)
 		}
 	}

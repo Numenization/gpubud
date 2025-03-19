@@ -23,16 +23,25 @@ def scrape(source):
         link2 = link.find_next('a')
         count_span = right.find('span', {'class': 'inventoryCnt'})
 
-        stock = 'n/a'
-        if count_span is not None:
-            stock = count_span.contents[0].strip()
+        stock = 0
+        try:
+            if count_span is not None:
+                stock = int(count_span.contents[0].strip())
+        except ValueError:
+            pass
+
+        price = 0
+        try:
+            price = float(link['data-price'])
+        except ValueError:
+            pass
 
         parsed_name = parse_name(link['data-name'])
 
         data['gpus'].append({
             'manufacturer': link['data-brand'],
             'name': link['data-name'],
-            'price': link['data-price'],
+            'price': price,
             'id': link['data-id'],
             'brand': parsed_name['brand'],
             'line': parsed_name['line'],
