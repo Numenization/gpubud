@@ -45,6 +45,7 @@ func Scrape(env *Env) error {
 	return nil
 }
 
+// Log the number of GPUs we are currently tracking in the database
 func ReportGPUData(env *Env) error {
 	gpus, err := GetAllGPUs(env)
 	if err != nil {
