@@ -29,12 +29,12 @@ func (um *UpdateManager) UpdateNow() error {
 	return um.emit()
 }
 
-func (um *UpdateManager) Subscribe(fn func(*Env) error) {
+func (um *UpdateManager) Add(fn func(*Env) error) {
 	ptr := reflect.ValueOf(fn).Pointer()
 	um.callbacks[ptr] = fn
 }
 
-func (um *UpdateManager) Unsubscribe(fn func(*Env) error) {
+func (um *UpdateManager) Remove(fn func(*Env) error) {
 	ptr := reflect.ValueOf(fn).Pointer()
 	delete(um.callbacks, ptr)
 }

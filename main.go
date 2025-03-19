@@ -33,8 +33,8 @@ func InitEnvironment() (*Env, error) {
 
 	env.UpdateManager = NewUpdateManager(env, 5*time.Minute)
 
-	env.UpdateManager.Subscribe(Scrape)
-	env.UpdateManager.Subscribe(ReportGPUData)
+	env.UpdateManager.Add(Scrape)
+	env.UpdateManager.Add(ReportGPUData)
 
 	return env, nil
 }
