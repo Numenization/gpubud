@@ -11,7 +11,7 @@ import (
 // GPU is a struct that holds the data for a GPU
 type GPU struct {
 	gorm.Model
-	ID           string  `json:"id" gorm:"primaryKey"`
+	ID           int32   `json:"id" gorm:"primaryKey;autoIncrement:false"`
 	Brand        string  `json:"brand"`
 	Line         string  `json:"line"`
 	Link         string  `json:"link"`
@@ -27,7 +27,7 @@ type Price struct {
 	gorm.Model
 	Price float64
 	Stock int32
-	GPUID string
+	GPUID int32
 	GPU   *GPU
 	Time  time.Time
 }
@@ -48,6 +48,7 @@ func UpsertGPU(env *Env, gpu *GPU) {
 func CreatePrice(env *Env, gpu *GPU) {
 	price := Price{
 		Price: gpu.Price,
+		Stock: gpu.Stock,
 		GPUID: gpu.ID,
 		GPU:   gpu,
 		Time:  time.Now(),

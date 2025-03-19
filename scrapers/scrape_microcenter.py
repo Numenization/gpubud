@@ -23,6 +23,12 @@ def scrape(source):
         link2 = link.find_next('a')
         count_span = right.find('span', {'class': 'inventoryCnt'})
 
+        id = 0
+        try:
+            id = int(link['data-id'])
+        except ValueError:
+            pass
+
         stock = 0
         try:
             if count_span is not None:
@@ -42,7 +48,7 @@ def scrape(source):
             'manufacturer': link['data-brand'],
             'name': link['data-name'],
             'price': price,
-            'id': link['data-id'],
+            'id': id,
             'brand': parsed_name['brand'],
             'line': parsed_name['line'],
             'model': parsed_name['model'],
