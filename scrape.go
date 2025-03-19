@@ -44,3 +44,13 @@ func Scrape(env *Env) error {
 
 	return nil
 }
+
+func ReportGPUData(env *Env) error {
+	gpus, err := GetAllGPUs(env)
+	if err != nil {
+		return fmt.Errorf("error in updating GPU data: %s", err.Error())
+	}
+	log.Printf("New GPU data: %d GPUs in database\n", len(gpus))
+
+	return nil
+}
