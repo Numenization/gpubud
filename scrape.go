@@ -2,10 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
 	"time"
 )
@@ -16,14 +14,8 @@ func Scrape(env *Env) error {
 
 	var data ScrapeData
 
-	// check to make sure we have the URL in our env
-	url, set := os.LookupEnv("MICROCENTER_URL")
-	if !set {
-		return errors.New("missing MICROCENTER_URL env")
-	}
-
 	// execute the python scraper and get the data back
-	cmd := exec.Command("python3", "./scrapers/scrape_microcenter.py", "-s", url)
+	cmd := exec.Command("python3", "./scrapers/scrape_microcenter.py", "-s", env.MicrocenterUrl)
 	out, command_err := cmd.CombinedOutput()
 	if command_err != nil {
 		return fmt.Errorf("error in scraping microcenter: %s", command_err.Error())
