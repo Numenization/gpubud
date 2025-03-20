@@ -14,7 +14,7 @@ import (
 
 type Env struct {
 	DB              *gorm.DB
-	Discord         *discordgo.Session
+	DiscordBot      *DiscordBot
 	LastScrapeTime  time.Time
 	RunUpdateLoop   bool
 	UpdateManager   *UpdateManager
@@ -29,6 +29,10 @@ func GetEnvironmentVariable(v string) (string, error) {
 	}
 
 	return result, nil
+}
+
+func SendDiscordMessage(s *discordgo.Session, message string) {
+	s.UserGuilds(200, "", "", false)
 }
 
 func InitEnvironment() (*Env, error) {
@@ -66,13 +70,14 @@ func InitEnvironment() (*Env, error) {
 	env.UpdateManager.Add(Scrape)
 	env.UpdateManager.Add(ReportGPUData)
 
-	// Setup notifier
-	discordService, err := discordgo.New(fmt.Sprintf("Bot %s", env.DiscordBotToken))
+	bot, err := NewDiscordBot(&DiscordBotConfig{
+		Token: discordBotToken,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("error in environment initialization: %s", err.Error())
+		return nil, fmt.Errorf("error in creating discord bot: %s", err.Error())
 	}
 
-	env.Discord = discordService
+	env.DiscordBot = bot
 
 	return env, nil
 }
