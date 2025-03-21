@@ -37,7 +37,6 @@ func SendDiscordMessage(s *discordgo.Session, message string) {
 
 func InitEnvironment() (*Env, error) {
 	// Get environment variables from OS
-	var err error
 	microcenterUrl, err := GetEnvironmentVariable("MICROCENTER_URL")
 	if err != nil {
 		return nil, fmt.Errorf("error in initialization: %s", err.Error())
