@@ -95,5 +95,8 @@ func main() {
 	env.UpdateManager.Start()
 	env.UpdateManager.UpdateNow()
 
-	log.Fatal(http.ListenAndServe(":8000", nil))
+	env.DiscordBot.Open()
+	defer env.DiscordBot.Close()
+
+	log.Panic(http.ListenAndServe(":8000", nil))
 }
