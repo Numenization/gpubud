@@ -28,7 +28,7 @@ func Scrape(env *Env) error {
 	}
 
 	for _, gpu := range data.GPUs {
-		UpsertGPU(env, gpu)
+		InsertGPU(env, gpu)
 	}
 	UpdateMissingGPUs(env, data.GPUs)
 

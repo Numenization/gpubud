@@ -1,9 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"slices"
+	"strings"
 	"time"
 
+	"github.com/bwmarrin/discordgo"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -32,6 +36,20 @@ type Price struct {
 	Time  time.Time
 }
 
+type ChannelConfig struct {
+	gorm.Model
+	ID         int32                `gorm:"primaryKey"`
+	ChannelID  string               `gorm:"unique;not null"`
+	Rules      []*ChannelConfigRule `gorm:"foreignKey:ID"`
+	Subscribed bool                 `gorm:"default:false"`
+}
+
+type ChannelConfigRule struct {
+	gorm.Model
+	ID    int32 `gorm:"primaryKey"`
+	Query string
+}
+
 // ScrapeData is a struct that holds the data scraped from the Microcenter website
 type ScrapeData struct {
 	GPUs      []*GPU
@@ -39,8 +57,85 @@ type ScrapeData struct {
 	Timestamp string
 }
 
+// Commit the config to the database, updating the database with any changes
+func (c *ChannelConfig) commit(env *Env) error {
+	result := env.DB.Save(c)
+	if result.Error != nil {
+		return fmt.Errorf("error in commiting config to db: %s", result.Error)
+	}
+
+	return nil
+}
+
+func (c *ChannelConfig) AddRule(q string, env *Env) error {
+	// TODO: This is raw user input that gets put into database queries. Sanitization would be preferable
+	cleansedInput := strings.TrimSpace(q)
+	for _, v := range c.Rules {
+		if v.Query == cleansedInput {
+			return fmt.Errorf("rule already exists in config")
+		}
+	}
+	c.Rules = append(c.Rules, &ChannelConfigRule{Query: cleansedInput})
+	return c.commit(env)
+}
+
+func (c *ChannelConfig) RemoveRule(q string, env *Env) error {
+	// TODO: Same as Addrule(). This user input should be sanitized more.
+	cleansedInput := strings.TrimSpace(q)
+	for i, v := range c.Rules {
+		if v.Query == cleansedInput {
+			c.Rules = slices.Delete(c.Rules, i, i+1)
+			return c.commit(env)
+		}
+	}
+
+	return fmt.Errorf("could not find rule in config")
+}
+
+func (c *ChannelConfig) Subscribe(env *Env) error {
+	if c.Subscribed {
+		return fmt.Errorf("already subscribed for notifications")
+	}
+
+	c.Subscribed = true
+	return c.commit(env)
+}
+
+func (c *ChannelConfig) Unsubscribe(env *Env) error {
+	if !c.Subscribed {
+		return fmt.Errorf("not subscribed for notifications")
+	}
+
+	c.Subscribed = false
+	return c.commit(env)
+}
+
+func CreateChannelConfig(env *Env, channel *discordgo.Channel) (*ChannelConfig, error) {
+	newChannel := ChannelConfig{
+		ChannelID: channel.ID,
+	}
+
+	result := env.DB.Create(&newChannel)
+	if result.Error != nil {
+		return nil, fmt.Errorf("could not create channel config: %s", result.Error)
+	}
+
+	return &newChannel, nil
+}
+
+func LoadChannelConfigs(env *Env) ([]*ChannelConfig, error) {
+	var configs []*ChannelConfig
+	result := env.DB.Find(&configs)
+	if result.Error != nil {
+		return nil, fmt.Errorf("could not load channel configurations: %s", result.Error)
+	}
+
+	//env.ChannelConfigs = configs
+	return configs, nil
+}
+
 // Inserts or updates a GPU in the database and create a new price for the current time
-func UpsertGPU(env *Env, gpu *GPU) {
+func InsertGPU(env *Env, gpu *GPU) {
 	env.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(gpu)
 	CreatePrice(env, gpu)
 }

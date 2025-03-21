@@ -15,6 +15,7 @@ import (
 type Env struct {
 	DB              *gorm.DB
 	DiscordBot      *DiscordBot
+	ChannelConfigs  []*ChannelConfig
 	LastScrapeTime  time.Time
 	RunUpdateLoop   bool
 	UpdateManager   *UpdateManager
@@ -53,7 +54,7 @@ func InitEnvironment() (*Env, error) {
 		return nil, fmt.Errorf("error in initialization: %s", err.Error())
 	}
 
-	DB.AutoMigrate(&GPU{}, &Price{})
+	DB.AutoMigrate(&GPU{}, &Price{}, &ChannelConfig{}, &ChannelConfigRule{})
 
 	// Setup Env struct
 	env := &Env{
@@ -64,13 +65,26 @@ func InitEnvironment() (*Env, error) {
 		DiscordBotToken: discordBotToken,
 	}
 
+	// Setup Update Manager
 	env.UpdateManager = NewUpdateManager(env, 5*time.Minute)
-
 	env.UpdateManager.Add(Scrape)
 	env.UpdateManager.Add(ReportGPUData)
 
+	// Setup Discord Bot
+	configs, err := LoadChannelConfigs(env)
+	if err != nil {
+		return nil, fmt.Errorf("error in initialization: %s", err.Error())
+	}
+
+	cfMap := make(map[string]*ChannelConfig)
+	for _, cf := range configs {
+		cfMap[cf.ChannelID] = cf
+	}
+
 	bot, err := NewDiscordBot(&DiscordBotConfig{
-		Token: discordBotToken,
+		Token:            discordBotToken,
+		NotifierChannels: cfMap,
+		Env:              env,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error in creating discord bot: %s", err.Error())

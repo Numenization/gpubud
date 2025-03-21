@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"slices"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -14,30 +13,31 @@ type DiscordBot struct {
 }
 
 type DiscordBotConfig struct {
-	Token            string
-	NotifierChannels []*discordgo.Channel
-	Env              *Env
+	// The bot's discord API access token
+	Token string
+	// A map that maps the string channel ID of a channel to its respective configuration
+	NotifierChannels map[string]*ChannelConfig
+	// The environment structure for the GPU Bud core
+	Env *Env
 }
 
 type optionMap = map[string]*discordgo.ApplicationCommandInteractionDataOption
 
 var commands = []*discordgo.ApplicationCommand{
-	{
-		Name:        "hello-world",
-		Description: "Says 'Hello World!'",
-	},
-	{
-		Name:        "echo",
-		Description: "Echoes the user's message",
-		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Name:        "message",
-				Description: "The message to echo back",
-				Type:        discordgo.ApplicationCommandOptionString,
-				Required:    true,
+	/*
+		{
+			Name:        "echo",
+			Description: "Echoes the user's message",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:        "message",
+					Description: "The message to echo back",
+					Type:        discordgo.ApplicationCommandOptionString,
+					Required:    true,
+				},
 			},
 		},
-	},
+	*/
 	{
 		Name:        "subscribe",
 		Description: "Subscribes current channel to GPU notifier",
@@ -49,77 +49,41 @@ var commands = []*discordgo.ApplicationCommand{
 }
 
 var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot){
-	"hello-world": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Hello World!",
-			},
-		})
-
-		if err != nil {
-			log.Panicf("Could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
-		}
-	},
-
-	"echo": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
-		opts := parseOptions(i.ApplicationCommandData().Options)
-
-		author := "Missing Author"
-
-		if i.User != nil {
-			// Message sent in DM
-			author = i.User.GlobalName
-		} else if i.Member != nil {
-			// Message sent in Guild
-			author = i.Member.User.GlobalName
-		}
-
-		response := fmt.Sprintf("%s: %s", author, opts["message"].StringValue())
-
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: response,
-			},
-		})
-
-		if err != nil {
-			log.Panicf("could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
-		}
-	},
-
 	"subscribe": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
 		channel, err := s.Channel(i.ChannelID)
 		if err != nil {
 			log.Panicf("Could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
 		}
 
-		// Check to see if channel is already subscribed
-		for _, v := range b.config.NotifierChannels {
-			if v.ID == channel.ID {
-				// This channel is already subscribed to the bot
-				response := "Channel is already subscribed to bot."
+		response := ""
+		stop := false
 
-				err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: response,
-					},
-				})
+		if c, ok := b.config.NotifierChannels[channel.ID]; ok {
+			// We have the current channel in the configuration already
+			err := c.Subscribe(b.config.Env)
+			if err != nil {
+				response = fmt.Sprintf("Could not subscribe: %s", err.Error())
+				stop = true
+			}
+			if !stop {
+				response = "Subscribed for notifications"
+			}
+		} else {
+			// The current channel is new and not in our configuration map
+			newConfig, err := CreateChannelConfig(b.config.Env, channel)
+			if err != nil {
+				response = fmt.Sprintf("Could not subscribe: %s", err.Error())
+				stop = true
+			}
 
-				if err != nil {
-					log.Panicf("could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
-				}
-
-				return
+			subscribeErr := newConfig.Subscribe(b.config.Env)
+			if subscribeErr != nil && !stop {
+				response = fmt.Sprintf("Could not subscribe: %s", err.Error())
+			} else if subscribeErr == nil && !stop {
+				b.config.NotifierChannels[channel.ID] = newConfig
+				response = "Subscribed for notifications"
 			}
 		}
-
-		// Channel isn't subscribed. Add them to the NotifierChannels list and respond
-		b.config.NotifierChannels = append(b.config.NotifierChannels, channel)
-
-		response := "Subscribed channel to bot notifications."
 
 		resErr := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -139,31 +103,22 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			log.Panicf("Could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
 		}
 
-		// Check to see if channel is subscribed
-		for idx, v := range b.config.NotifierChannels {
-			if v.ID == channel.ID {
-				// This channel is already subscribed to the bot. Remove it and respond
-				b.config.NotifierChannels = slices.Delete(b.config.NotifierChannels, idx, idx+1)
+		response := ""
+		stop := false
 
-				response := "Unsubscribed from bot notifications."
-
-				err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: response,
-					},
-				})
-
-				if err != nil {
-					log.Panicf("could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
-				}
-
-				return
+		if c, ok := b.config.NotifierChannels[channel.ID]; ok {
+			err := c.Unsubscribe(b.config.Env)
+			if err != nil {
+				response = fmt.Sprintf("Could not unsubscribe: %s", err.Error())
+				stop = true
 			}
+			if !stop {
+				response = "Unsubscribed from notifications"
+			}
+		} else {
+			// Current channel is not in config list
+			response = "This channel has not been configured to recieve notifications"
 		}
-
-		// If we're here, then the channel isn't in the notifier list
-		response := "Channel is not subscribed for notifications."
 
 		resErr := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -178,14 +133,16 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 	},
 }
 
-func parseOptions(options []*discordgo.ApplicationCommandInteractionDataOption) (om optionMap) {
-	om = make(optionMap)
+// Maps the options for a discord command interaction
+func parseOptions(options []*discordgo.ApplicationCommandInteractionDataOption) optionMap {
+	om := make(optionMap)
 	for _, opt := range options {
 		om[opt.Name] = opt
 	}
 	return om
 }
 
+// Creates the discord API session and registers the bot's commands
 func (bot *DiscordBot) Open() error {
 	err := bot.session.Open()
 	if err != nil {
@@ -209,17 +166,20 @@ func (bot *DiscordBot) Open() error {
 	return nil
 }
 
+// Closes the discord API session
 func (bot *DiscordBot) Close() error {
 	log.Println("Closing discord bot...")
 	return bot.session.Close()
 }
 
+// Send a string message to all the channels in the channel:config map
 func (bot *DiscordBot) NotifyChannels(msg string) {
-	for _, channel := range bot.config.NotifierChannels {
-		bot.session.ChannelMessageSend(channel.ID, msg)
+	for k := range bot.config.NotifierChannels {
+		bot.session.ChannelMessageSend(k, msg)
 	}
 }
 
+// Creates a new discord bot with a given configuration
 func NewDiscordBot(config *DiscordBotConfig) (*DiscordBot, error) {
 	log.Println("Starting Discord bot...")
 
