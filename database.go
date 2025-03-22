@@ -40,14 +40,15 @@ type ChannelConfig struct {
 	gorm.Model
 	ID         int32                `gorm:"primaryKey"`
 	ChannelID  string               `gorm:"unique;not null"`
-	Rules      []*ChannelConfigRule `gorm:"foreignKey:ID"`
+	Rules      []*ChannelConfigRule `gorm:"foreignKey:ChannelConfigRefer"`
 	Subscribed bool                 `gorm:"default:false"`
 }
 
 type ChannelConfigRule struct {
 	gorm.Model
-	ID    int32 `gorm:"primaryKey"`
-	Query string
+	ID                 int32 `gorm:"primaryKey"`
+	ChannelConfigRefer uint
+	Query              string
 }
 
 // ScrapeData is a struct that holds the data scraped from the Microcenter website
@@ -125,7 +126,7 @@ func CreateChannelConfig(env *Env, channel *discordgo.Channel) (*ChannelConfig, 
 
 func LoadChannelConfigs(env *Env) ([]*ChannelConfig, error) {
 	var configs []*ChannelConfig
-	result := env.DB.Find(&configs)
+	result := env.DB.Preload(clause.Associations).Find(&configs)
 	if result.Error != nil {
 		return nil, fmt.Errorf("could not load channel configurations: %s", result.Error)
 	}
