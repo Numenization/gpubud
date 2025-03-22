@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -111,5 +112,11 @@ func main() {
 	env.DiscordBot.Open()
 	defer env.DiscordBot.Close()
 
-	log.Panic(http.ListenAndServe(":8000", nil))
+	go http.ListenAndServe(":8000", nil)
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
+	log.Println("Running and ready")
+	<-stop
+	log.Println("Shutting down GPUBud...")
 }
