@@ -62,46 +62,44 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			log.Printf("Could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, err.Error())
 		}
 
-		response := ""
+		content := ""
 		stop := false
 
 		if c, ok := b.config.NotifierChannels[channel.ID]; ok {
 			// We have the current channel in the configuration already
 			err := c.Subscribe(b.config.Env)
 			if err != nil {
-				response = fmt.Sprintf("Could not subscribe: %s", err.Error())
+				content = fmt.Sprintf("Could not subscribe: %s", err.Error())
 				stop = true
 			}
 			if !stop {
-				response = "Subscribed for notifications"
+				content = "Subscribed for notifications"
 			}
 		} else {
 			// The current channel is new and not in our configuration map
 			newConfig, err := CreateChannelConfig(b.config.Env, channel)
 			if err != nil {
-				response = fmt.Sprintf("Could not subscribe: %s", err.Error())
+				content = fmt.Sprintf("Could not subscribe: %s", err.Error())
 				stop = true
 			}
 
 			subscribeErr := newConfig.Subscribe(b.config.Env)
 			if subscribeErr != nil && !stop {
-				response = fmt.Sprintf("Could not subscribe: %s", err.Error())
+				content = fmt.Sprintf("Could not subscribe: %s", err.Error())
 			} else if subscribeErr == nil && !stop {
 				b.config.NotifierChannels[channel.ID] = newConfig
-				response = "Subscribed for notifications"
+				content = "Subscribed for notifications"
 			}
 		}
 
-		resErr := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		response := &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: response,
+				Content: content,
 			},
-		})
-
-		if resErr != nil {
-			log.Printf("could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, resErr.Error())
 		}
+
+		Respond(s, i, response)
 	},
 
 	"unsubscribe": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
@@ -110,33 +108,31 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			log.Printf("Could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, err.Error())
 		}
 
-		response := ""
+		content := ""
 		stop := false
 
 		if c, ok := b.config.NotifierChannels[channel.ID]; ok {
 			err := c.Unsubscribe(b.config.Env)
 			if err != nil {
-				response = fmt.Sprintf("Could not unsubscribe: %s", err.Error())
+				content = fmt.Sprintf("Could not unsubscribe: %s", err.Error())
 				stop = true
 			}
 			if !stop {
-				response = "Unsubscribed from notifications"
+				content = "Unsubscribed from notifications"
 			}
 		} else {
 			// Current channel is not in config list
-			response = "This channel has not been configured to recieve notifications"
+			content = "This channel has not been configured to recieve notifications"
 		}
 
-		resErr := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		response := &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: response,
+				Content: content,
 			},
-		})
-
-		if resErr != nil {
-			log.Printf("Could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, resErr.Error())
 		}
+
+		Respond(s, i, response)
 	},
 
 	"rules": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
@@ -145,30 +141,28 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			log.Printf("Could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
 		}
 
-		response := ""
+		content := ""
 
 		if c, ok := b.config.NotifierChannels[channel.ID]; ok {
-			response = "Rules for current channel: "
+			content = "Rules for current channel: "
 			var sb strings.Builder
 			for _, r := range c.Rules {
 				sb.WriteString(fmt.Sprintf("`%s` ", r.Query))
 			}
 
-			response = response + sb.String()
+			content = content + sb.String()
 		} else {
-			response = "Could not get rule data for channel"
+			content = "Could not get rule data for channel"
 		}
 
-		resErr := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		response := &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: response,
+				Content: content,
 			},
-		})
-
-		if resErr != nil {
-			log.Printf("could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, resErr.Error())
 		}
+
+		Respond(s, i, response)
 	},
 
 	"add-rule": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
@@ -195,10 +189,7 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			},
 		}
 
-		err := s.InteractionRespond(i.Interaction, response)
-		if err != nil {
-			log.Printf("Could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, err.Error())
-		}
+		Respond(s, i, response)
 	},
 
 	"remove-rule": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
@@ -267,6 +258,20 @@ func parseOptions(options []*discordgo.ApplicationCommandInteractionDataOption) 
 	return om
 }
 */
+
+func Respond(s *discordgo.Session, i *discordgo.InteractionCreate, r *discordgo.InteractionResponse) {
+	err := s.InteractionRespond(i.Interaction, r)
+	if err != nil {
+		log.Printf("Could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, err.Error())
+
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("Error in sending response: %s", err.Error()),
+			},
+		})
+	}
+}
 
 // Creates the discord API session and registers the bot's commands
 func (bot *DiscordBot) Open() error {
