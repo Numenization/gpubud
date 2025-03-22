@@ -22,8 +22,6 @@ type DiscordBotConfig struct {
 	Env *Env
 }
 
-//type optionMap = map[string]*discordgo.ApplicationCommandInteractionDataOption
-
 var commands = []*discordgo.ApplicationCommand{
 	{
 		Name:        "subscribe",
@@ -361,17 +359,6 @@ var modalHandlers = map[string]func(data *discordgo.ModalSubmitInteractionData, 
 	},
 }
 
-/*
-// Maps the options for a discord command interaction
-func parseOptions(options []*discordgo.ApplicationCommandInteractionDataOption) optionMap {
-	om := make(optionMap)
-	for _, opt := range options {
-		om[opt.Name] = opt
-	}
-	return om
-}
-*/
-
 // Sends a response to an Interaction with error handling. If an error occurs, it will try to send a response notifying the user of the error.
 func Respond(s *discordgo.Session, i *discordgo.InteractionCreate, r *discordgo.InteractionResponse) {
 	err := s.InteractionRespond(i.Interaction, r)
@@ -419,24 +406,6 @@ func (bot *DiscordBot) Open() error {
 // Closes the discord API session
 func (bot *DiscordBot) Close() error {
 	log.Println("Cleaning up discord bot...")
-
-	/*
-		// Remove the registered commands
-		log.Println("Removing application commands...")
-		cmds, err := bot.session.ApplicationCommands(bot.session.State.User.ID, "")
-		if err != nil {
-			log.Println("Could not fetch commands, closing session early...")
-			return bot.session.Close()
-		}
-
-		for _, cmd := range cmds {
-			log.Printf("Removing application command '%s'", cmd.Name)
-			err := bot.session.ApplicationCommandDelete(bot.session.State.User.ID, "", cmd.ID)
-			if err != nil {
-				log.Printf("Cannot delete '%s' command: %s", cmd.Name, err.Error())
-			}
-		}
-	*/
 
 	// Close the bot session and return
 	log.Println("Closing discord session...")
