@@ -259,17 +259,22 @@ func parseOptions(options []*discordgo.ApplicationCommandInteractionDataOption) 
 }
 */
 
+// Sends a response to an Interaction with error handling. If an error occurs, it will try to send a response notifying the user of the error.
 func Respond(s *discordgo.Session, i *discordgo.InteractionCreate, r *discordgo.InteractionResponse) {
 	err := s.InteractionRespond(i.Interaction, r)
 	if err != nil {
 		log.Printf("Could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, err.Error())
 
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		err2 := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: fmt.Sprintf("Error in sending response: %s", err.Error()),
 			},
 		})
+
+		if err2 != nil {
+			log.Panicf("Could not send response for error in Respond(): %s", err.Error())
+		}
 	}
 }
 
