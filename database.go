@@ -83,8 +83,9 @@ func (c *ChannelConfig) AddRule(q string, env *Env) error {
 func (c *ChannelConfig) RemoveRule(q string, env *Env) error {
 	// TODO: Same as Addrule(). This user input should be sanitized more.
 	cleansedInput := strings.TrimSpace(q)
-	for i, v := range c.Rules {
-		if v.Query == cleansedInput {
+	for i, rule := range c.Rules {
+		if rule.Query == cleansedInput {
+			env.DB.Where("channel_config_refer = ? AND query = ?", c.ID, rule.Query).Delete(&rule)
 			c.Rules = slices.Delete(c.Rules, i, i+1)
 			return c.commit(env)
 		}

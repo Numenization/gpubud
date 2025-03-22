@@ -65,7 +65,7 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 		content := ""
 		stop := false
 
-		if c, ok := b.config.NotifierChannels[channel.ID]; ok {
+		if c, ok := b.config.NotifierChannels[i.ChannelID]; ok {
 			// We have the current channel in the configuration already
 			err := c.Subscribe(b.config.Env)
 			if err != nil {
@@ -96,6 +96,7 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: content,
+				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		}
 
@@ -103,15 +104,10 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 	},
 
 	"unsubscribe": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
-		channel, err := s.Channel(i.ChannelID)
-		if err != nil {
-			log.Printf("Could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, err.Error())
-		}
-
 		content := ""
 		stop := false
 
-		if c, ok := b.config.NotifierChannels[channel.ID]; ok {
+		if c, ok := b.config.NotifierChannels[i.ChannelID]; ok {
 			err := c.Unsubscribe(b.config.Env)
 			if err != nil {
 				content = fmt.Sprintf("Could not unsubscribe: %s", err.Error())
@@ -129,6 +125,7 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: content,
+				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		}
 
@@ -136,14 +133,9 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 	},
 
 	"rules": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
-		channel, err := s.Channel(i.ChannelID)
-		if err != nil {
-			log.Printf("Could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
-		}
-
 		content := ""
 
-		if c, ok := b.config.NotifierChannels[channel.ID]; ok {
+		if c, ok := b.config.NotifierChannels[i.ChannelID]; ok {
 			content = "Rules for current channel: "
 			var sb strings.Builder
 			for _, r := range c.Rules {
@@ -159,6 +151,7 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: content,
+				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		}
 
@@ -193,11 +186,131 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 	},
 
 	"remove-rule": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
-		// TODO: Write remove-rule function. This will let users remove a rule from the channel config
+		var options []discordgo.SelectMenuOption
+
+		if c, ok := b.config.NotifierChannels[i.ChannelID]; ok {
+			for _, r := range c.Rules {
+				opt := discordgo.SelectMenuOption{
+					Label: r.Query,
+					Value: r.Query,
+					Emoji: &discordgo.ComponentEmoji{
+						Name: "🗑️",
+					},
+					Default: false,
+				}
+
+				options = append(options, opt)
+			}
+		}
+
+		if len(options) <= 0 {
+			Respond(s, i, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "There are no rules for the current channel",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return
+		}
+
+		response := &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Rule Removal",
+				Flags:   discordgo.MessageFlagsEphemeral,
+				Components: []discordgo.MessageComponent{
+					discordgo.ActionsRow{
+						Components: []discordgo.MessageComponent{
+							discordgo.SelectMenu{
+								CustomID:    "remove_rule",
+								Placeholder: "Select a rule to remove 👇",
+								Options:     options,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		Respond(s, i, response)
 	},
 
 	"list": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
+		// TODO: The list command should return a list of all the current GPU information as a message
+	},
+}
 
+var componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot){
+	"remove_rule": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
+		data := i.MessageComponentData()
+
+		response := &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("⚠️ Are you sure you want to remove this rule? ⚠️\n`%s`", data.Values[0]),
+				Flags:   discordgo.MessageFlagsEphemeral,
+				Components: []discordgo.MessageComponent{
+					discordgo.ActionsRow{
+						Components: []discordgo.MessageComponent{
+							discordgo.Button{
+								Label:    "Yes",
+								Style:    discordgo.PrimaryButton,
+								Disabled: false,
+								CustomID: fmt.Sprintf("remove_rule_accept_%s", data.Values[0]),
+							},
+							discordgo.Button{
+								Label:    "No",
+								Style:    discordgo.DangerButton,
+								Disabled: false,
+								CustomID: fmt.Sprintf("remove_rule_decline_%s", data.Values[0]),
+							},
+						},
+					},
+				},
+			},
+		}
+
+		Respond(s, i, response)
+	},
+}
+
+var componentResponseHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot, d string){
+	"remove_rule_accept": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot, d string) {
+		if c, ok := b.config.NotifierChannels[i.ChannelID]; ok {
+			err := c.RemoveRule(d, b.config.Env)
+			if err != nil {
+				Respond(s, i, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseUpdateMessage,
+					Data: &discordgo.InteractionResponseData{
+						Content: fmt.Sprintf("Error in deleting rule: %s", err.Error()),
+						Flags:   discordgo.MessageFlagsEphemeral,
+					},
+				})
+
+				return
+			}
+
+			Respond(s, i, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseUpdateMessage,
+				Data: &discordgo.InteractionResponseData{
+					Content: fmt.Sprintf("Rule `%s` removed ✅", d),
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+		}
+	},
+
+	"remove_rule_decline": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot, d string) {
+		response := &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Rule not deleted",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		}
+
+		Respond(s, i, response)
 	},
 }
 
@@ -226,7 +339,7 @@ var modalHandlers = map[string]func(data *discordgo.ModalSubmitInteractionData, 
 			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: fmt.Sprintf("New rule submitted for `%s`\nYou will now recieve notifications in this channel when a GPU matching this model is updated", model),
+					Content: fmt.Sprintf("New rule created for `%s` ✅\nYou will now recieve notifications in this channel when a GPU matching this model is updated", model),
 					Flags:   discordgo.MessageFlagsEphemeral,
 				},
 			})
@@ -263,12 +376,13 @@ func parseOptions(options []*discordgo.ApplicationCommandInteractionDataOption) 
 func Respond(s *discordgo.Session, i *discordgo.InteractionCreate, r *discordgo.InteractionResponse) {
 	err := s.InteractionRespond(i.Interaction, r)
 	if err != nil {
-		log.Printf("Could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, err.Error())
+		log.Printf("Could not respond to interaction %s: %s\n", i.ID, err.Error())
 
 		err2 := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: fmt.Sprintf("Error in sending response: %s", err.Error()),
+				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 
@@ -289,7 +403,7 @@ func (bot *DiscordBot) Open() error {
 
 	registeredCommands := make([]*discordgo.ApplicationCommand, len(commands))
 	for i, v := range commands {
-		log.Printf("Trying to add command '%s'\n", v.Name)
+		log.Printf("Creating application command '%s'\n", v.Name)
 		cmd, err := bot.session.ApplicationCommandCreate(bot.session.State.User.ID, "", v)
 		if err != nil {
 			return fmt.Errorf("cannot create command '%s' command: %s", v.Name, err)
@@ -304,7 +418,28 @@ func (bot *DiscordBot) Open() error {
 
 // Closes the discord API session
 func (bot *DiscordBot) Close() error {
-	log.Println("Closing discord bot...")
+	log.Println("Cleaning up discord bot...")
+
+	/*
+		// Remove the registered commands
+		log.Println("Removing application commands...")
+		cmds, err := bot.session.ApplicationCommands(bot.session.State.User.ID, "")
+		if err != nil {
+			log.Println("Could not fetch commands, closing session early...")
+			return bot.session.Close()
+		}
+
+		for _, cmd := range cmds {
+			log.Printf("Removing application command '%s'", cmd.Name)
+			err := bot.session.ApplicationCommandDelete(bot.session.State.User.ID, "", cmd.ID)
+			if err != nil {
+				log.Printf("Cannot delete '%s' command: %s", cmd.Name, err.Error())
+			}
+		}
+	*/
+
+	// Close the bot session and return
+	log.Println("Closing discord session...")
 	return bot.session.Close()
 }
 
@@ -335,8 +470,25 @@ func NewDiscordBot(config *DiscordBotConfig) (*DiscordBot, error) {
 	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
-			if handler, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
+			data := i.ApplicationCommandData()
+			if handler, ok := commandHandlers[data.Name]; ok {
 				handler(s, i, bot)
+			}
+		case discordgo.InteractionMessageComponent:
+			data := i.MessageComponentData()
+			if handler, ok := componentHandlers[data.CustomID]; ok {
+				// Catch any interactions that don't have any custom data with them
+				handler(s, i, bot)
+			} else {
+				// Check to see if this interaction's ID refers to a handler
+				for k, handler := range componentResponseHandlers {
+					if !strings.HasPrefix(data.CustomID, k) {
+						continue
+					}
+
+					data, _ := strings.CutPrefix(data.CustomID, k+"_")
+					handler(s, i, bot, data)
+				}
 			}
 		case discordgo.InteractionModalSubmit:
 			data := i.ModalSubmitData()
