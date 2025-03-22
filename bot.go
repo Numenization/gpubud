@@ -41,6 +41,14 @@ var commands = []*discordgo.ApplicationCommand{
 		Name:        "add-rule",
 		Description: "Create a new rule for GPU Bud to send notifications",
 	},
+	{
+		Name:        "remove-rule",
+		Description: "Remove a notification rule",
+	},
+	{
+		Name:        "list",
+		Description: "Lists all the currently in stock GPUs",
+	},
 }
 
 var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot){
@@ -51,7 +59,7 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 	"subscribe": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
 		channel, err := s.Channel(i.ChannelID)
 		if err != nil {
-			log.Panicf("Could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
+			log.Printf("Could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, err.Error())
 		}
 
 		response := ""
@@ -92,14 +100,14 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 		})
 
 		if resErr != nil {
-			log.Panicf("could not respond to interaction %s: %s", i.ApplicationCommandData().Name, resErr.Error())
+			log.Printf("could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, resErr.Error())
 		}
 	},
 
 	"unsubscribe": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
 		channel, err := s.Channel(i.ChannelID)
 		if err != nil {
-			log.Panicf("Could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
+			log.Printf("Could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, err.Error())
 		}
 
 		response := ""
@@ -127,14 +135,14 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 		})
 
 		if resErr != nil {
-			log.Panicf("could not respond to interaction %s: %s", i.ApplicationCommandData().Name, resErr.Error())
+			log.Printf("Could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, resErr.Error())
 		}
 	},
 
 	"rules": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
 		channel, err := s.Channel(i.ChannelID)
 		if err != nil {
-			log.Panicf("Could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
+			log.Printf("Could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
 		}
 
 		response := ""
@@ -159,7 +167,7 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 		})
 
 		if resErr != nil {
-			log.Panicf("could not respond to interaction %s: %s", i.ApplicationCommandData().Name, resErr.Error())
+			log.Printf("could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, resErr.Error())
 		}
 	},
 
@@ -189,12 +197,16 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 
 		err := s.InteractionRespond(i.Interaction, response)
 		if err != nil {
-			log.Panicf("could not respond to interaction %s: %s", i.ApplicationCommandData().Name, err.Error())
+			log.Printf("Could not respond to interaction %s: %s\n", i.ApplicationCommandData().Name, err.Error())
 		}
 	},
 
 	"remove-rule": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
 		// TODO: Write remove-rule function. This will let users remove a rule from the channel config
+	},
+
+	"list": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
+
 	},
 }
 
@@ -214,7 +226,7 @@ var modalHandlers = map[string]func(data *discordgo.ModalSubmitInteractionData, 
 				})
 
 				if err != nil {
-					log.Panicf("could not process modal response: %s", err.Error())
+					log.Printf("Could not process modal response: %s\n", err.Error())
 				}
 
 				return
@@ -228,7 +240,7 @@ var modalHandlers = map[string]func(data *discordgo.ModalSubmitInteractionData, 
 				},
 			})
 			if err != nil {
-				log.Panicf("could not process modal response: %s", err.Error())
+				log.Printf("Could not process modal response: %s\n", err.Error())
 			}
 		} else {
 			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -239,7 +251,7 @@ var modalHandlers = map[string]func(data *discordgo.ModalSubmitInteractionData, 
 				},
 			})
 			if err != nil {
-				log.Panicf("could not process modal response: %s", err.Error())
+				log.Printf("Could not process modal response: %s\n", err.Error())
 			}
 		}
 	},
