@@ -349,6 +349,7 @@ var componentResponseHandlers = map[string]func(s *discordgo.Session, i *discord
 
 		Respond(s, i, response)
 	},
+
 	"list_page": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot, d string) {
 		pageIdx, err := strconv.Atoi(d)
 		if err != nil {
@@ -452,9 +453,11 @@ func GetListPage(p int, b *DiscordBot) (*discordgo.InteractionResponseData, erro
 	var embeds []*discordgo.MessageEmbed
 	for i := start; i < end; i++ {
 		gpu := stockedGpus[i]
+		imageURL := fmt.Sprintf("https://90a1c75758623581b3f8-5c119c3de181c9857fcb2784776b17ef.ssl.cf2.rackcdn.com/%v_%s_01_front_zoom.jpg", gpu.ID, gpu.SKU)
 		embed := &discordgo.MessageEmbed{
 			URL:         gpu.Link,
-			Title:       fmt.Sprintf("%s %s%s %s", gpu.Manufacturer, gpu.Brand, gpu.Line, gpu.ProductModel),
+			Thumbnail:   &discordgo.MessageEmbedThumbnail{URL: imageURL},
+			Title:       fmt.Sprintf("%s %s %s %s", gpu.Manufacturer, gpu.Brand, gpu.Line, gpu.ProductModel),
 			Description: fmt.Sprintf("$%v - %v in stock at Microcenter", gpu.Price, gpu.Stock),
 		}
 		embeds = append(embeds, embed)
