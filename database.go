@@ -16,6 +16,7 @@ import (
 type GPU struct {
 	gorm.Model
 	ID           int32   `json:"id" gorm:"primaryKey;autoIncrement:false"`
+	SKU          string  `json:"sku"`
 	Brand        string  `json:"brand"`
 	Line         string  `json:"line"`
 	Link         string  `json:"link"`
