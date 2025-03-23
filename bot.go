@@ -454,11 +454,20 @@ func GetListPage(p int, b *DiscordBot) (*discordgo.InteractionResponseData, erro
 	for i := start; i < end; i++ {
 		gpu := stockedGpus[i]
 		imageURL := fmt.Sprintf("https://90a1c75758623581b3f8-5c119c3de181c9857fcb2784776b17ef.ssl.cf2.rackcdn.com/%v_%s_01_front_zoom.jpg", gpu.ID, gpu.SKU)
+		color := 0
+		if gpu.Brand == "NVIDIA" {
+			color = 1433088
+		} else if gpu.Brand == "AMD" {
+			color = 16711680
+		} else if gpu.Brand == "Intel" {
+			color = 5198591
+		}
 		embed := &discordgo.MessageEmbed{
 			URL:         gpu.Link,
 			Thumbnail:   &discordgo.MessageEmbedThumbnail{URL: imageURL},
 			Title:       fmt.Sprintf("%s %s %s %s", gpu.Manufacturer, gpu.Brand, gpu.Line, gpu.ProductModel),
 			Description: fmt.Sprintf("$%v - %v in stock at Microcenter", gpu.Price, gpu.Stock),
+			Color:       color,
 		}
 		embeds = append(embeds, embed)
 	}
