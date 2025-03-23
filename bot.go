@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -235,7 +236,45 @@ var commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 	},
 
 	"list": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot) {
-		// TODO: The list command should return a list of all the current GPU information as a message
+		gpus, err := GetAllGPUs(b.config.Env)
+		if err != nil {
+			Respond(s, i, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: fmt.Sprintf("Error in retrieving GPU data: %s", err.Error()),
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return
+		}
+
+		if len(gpus) <= 0 {
+			Respond(s, i, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "There are no stocked GPUs in database",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return
+		}
+
+		page, err := GetListPage(0, b)
+		if err != nil {
+			Respond(s, i, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: fmt.Sprintf("Error generating page: %s", err.Error()),
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return
+		}
+
+		Respond(s, i, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: page,
+		})
 	},
 }
 
@@ -310,6 +349,36 @@ var componentResponseHandlers = map[string]func(s *discordgo.Session, i *discord
 
 		Respond(s, i, response)
 	},
+	"list_page": func(s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot, d string) {
+		pageIdx, err := strconv.Atoi(d)
+		if err != nil {
+			Respond(s, i, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseUpdateMessage,
+				Data: &discordgo.InteractionResponseData{
+					Content: fmt.Sprintf("Error generating page: %s", err.Error()),
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return
+		}
+
+		page, err := GetListPage(pageIdx, b)
+		if err != nil {
+			Respond(s, i, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseUpdateMessage,
+				Data: &discordgo.InteractionResponseData{
+					Content: fmt.Sprintf("Error generating page: %s", err.Error()),
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return
+		}
+
+		Respond(s, i, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: page,
+		})
+	},
 }
 
 var modalHandlers = map[string]func(data *discordgo.ModalSubmitInteractionData, s *discordgo.Session, i *discordgo.InteractionCreate, b *DiscordBot){
@@ -357,6 +426,84 @@ var modalHandlers = map[string]func(data *discordgo.ModalSubmitInteractionData, 
 			}
 		}
 	},
+}
+
+// Helper function for the list command handler to get paginated results
+func GetListPage(p int, b *DiscordBot) (*discordgo.InteractionResponseData, error) {
+	gpus, err := GetAllGPUs(b.config.Env)
+	if err != nil {
+		return nil, fmt.Errorf("could not get paginated results: %s", err.Error())
+	}
+
+	// Create a new slice of only stocked gpus
+	var stockedGpus []*GPU
+	for _, gpu := range gpus {
+		if gpu.Stock <= 0 {
+			continue
+		}
+		stockedGpus = append(stockedGpus, gpu)
+	}
+
+	pageLen := 8
+	maxPages := (len(stockedGpus) + (pageLen - 1)) / pageLen
+	start := pageLen * p
+	end := min(start+pageLen, len(stockedGpus)-1)
+
+	var embeds []*discordgo.MessageEmbed
+	for i := start; i < end; i++ {
+		gpu := stockedGpus[i]
+		embed := &discordgo.MessageEmbed{
+			URL:         gpu.Link,
+			Title:       fmt.Sprintf("%s %s%s %s", gpu.Manufacturer, gpu.Brand, gpu.Line, gpu.ProductModel),
+			Description: fmt.Sprintf("$%v - %v in stock at Microcenter", gpu.Price, gpu.Stock),
+		}
+		embeds = append(embeds, embed)
+	}
+
+	nextPageDisabled := false
+	prevPageDisabled := false
+	if p+1 >= maxPages {
+		nextPageDisabled = true
+	}
+	if p-1 < 0 {
+		prevPageDisabled = true
+	}
+
+	nav := discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Style: discordgo.PrimaryButton,
+				Emoji: &discordgo.ComponentEmoji{
+					Name: "👈",
+				},
+				Disabled: prevPageDisabled,
+				CustomID: fmt.Sprintf("list_page_%v", p-1),
+			},
+			discordgo.Button{
+				Label:    fmt.Sprintf("Page %v/%v", p+1, maxPages),
+				Style:    discordgo.SecondaryButton,
+				Disabled: true,
+				CustomID: "list_page_index",
+			},
+			discordgo.Button{
+				Style: discordgo.PrimaryButton,
+				Emoji: &discordgo.ComponentEmoji{
+					Name: "👉",
+				},
+				Disabled: nextPageDisabled,
+				CustomID: fmt.Sprintf("list_page_%v", p+1),
+			},
+		},
+	}
+
+	response := &discordgo.InteractionResponseData{
+		Content:    "Heres the list of currently in stock GPUs:",
+		Flags:      discordgo.MessageFlagsEphemeral,
+		Embeds:     embeds,
+		Components: []discordgo.MessageComponent{nav},
+	}
+
+	return response, nil
 }
 
 // Sends a response to an Interaction with error handling. If an error occurs, it will try to send a response notifying the user of the error.
