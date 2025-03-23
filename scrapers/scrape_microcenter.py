@@ -19,9 +19,13 @@ def scrape(source):
         left = item.find('div', {'class': 'result_left'})
         right = item.find('div', {'class': 'result_right'})
 
+        sku_p = item.find('p', {'class': 'sku'})
+
         link = left.find_next('a')
         link2 = link.find_next('a')
         count_span = right.find('span', {'class': 'inventoryCnt'})
+
+        sku = sku_p.text.removeprefix('SKU: ')
 
         id = 0
         try:
@@ -50,9 +54,10 @@ def scrape(source):
             'price': price,
             'id': id,
             'brand': parsed_name['brand'],
-            'line': parsed_name['line'],
+            'line': parsed_name['line'].strip(),
             'model': parsed_name['model'],
             'stock': stock,
+            'sku': sku,
             'link': f'https://www.microcenter.com{link2["href"]}'
         })
 
