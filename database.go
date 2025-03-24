@@ -137,6 +137,17 @@ func LoadChannelConfigs(env *Env) ([]*ChannelConfig, error) {
 	return configs, nil
 }
 
+func QueryRule(env *Env, rule *ChannelConfigRule) ([]*GPU, error) {
+	var matches []*GPU
+	query := "id LIKE ? OR sku LIKE ? OR brand LIKE ? OR LINE LIKE ? OR manufacturer LIKE ? OR product_model LIKE ?"
+	result := env.DB.Where(query, fmt.Sprintf("%%%s%%", rule.Query), fmt.Sprintf("%%%s%%", rule.Query), fmt.Sprintf("%%%s%%", rule.Query), fmt.Sprintf("%%%s%%", rule.Query), fmt.Sprintf("%%%s%%", rule.Query), fmt.Sprintf("%%%s%%", rule.Query)).Find(&matches)
+	if result.Error != nil {
+		return nil, fmt.Errorf("could not query rule: %s", result.Error)
+	}
+
+	return matches, nil
+}
+
 // Inserts or updates a GPU in the database and create a new price for the current time
 func InsertGPU(env *Env, gpu *GPU) {
 	env.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(gpu)
@@ -155,7 +166,7 @@ func CreatePrice(env *Env, gpu *GPU) {
 }
 
 // Finds a GPU in the database by its ID
-func FindGPU(env *Env, id string) (*GPU, error) {
+func FindGPU(env *Env, id int32) (*GPU, error) {
 	var gpu GPU
 	result := env.DB.First(&gpu, "id = ?", id)
 	if result.Error != nil {

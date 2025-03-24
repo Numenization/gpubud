@@ -572,10 +572,63 @@ func (bot *DiscordBot) Close() error {
 }
 
 // Send a string message to all the channels in the channel:config map
-func (bot *DiscordBot) NotifyChannels(msg string) {
-	for k := range bot.config.NotifierChannels {
-		bot.session.ChannelMessageSend(k, msg)
+func (bot *DiscordBot) NotifyChannels(diffs []*GPUDifference) error {
+	iterations := 0
+	for _, channel := range bot.config.NotifierChannels {
+		var embeds []*discordgo.MessageEmbed
+		for _, rule := range channel.Rules {
+			matches, err := QueryRule(bot.config.Env, rule)
+			if err != nil {
+				return fmt.Errorf("error in sending notifications: %s", err.Error())
+			}
+
+			for _, match := range matches {
+				for _, diff := range diffs {
+					if diff.IsDiff {
+						log.Println(diff)
+					}
+					iterations++
+					if match.ID != diff.GPUID {
+						continue
+					}
+
+					description := ""
+					difference := false
+					if diff.PriceOld != diff.PriceNew {
+						description = description + fmt.Sprintf("Price: ~~$%v~~ -> %v\n", diff.PriceOld, diff.PriceNew)
+						difference = true
+					}
+					if diff.StockOld != diff.StockNew {
+						description = description + fmt.Sprintf("Stock: ~~%v~~ -> %v\n", diff.StockOld, diff.StockNew)
+						difference = true
+					}
+
+					if !difference {
+						continue
+					}
+
+					embed := &discordgo.MessageEmbed{
+						Title:       fmt.Sprintf("%s %s %s %s", match.Manufacturer, match.Brand, match.Line, match.ProductModel),
+						Description: description,
+					}
+					embeds = append(embeds, embed)
+				}
+			}
+		}
+
+		if len(embeds) <= 0 {
+			//  no updates
+			continue
+		}
+
+		bot.session.ChannelMessageSendComplex(channel.ChannelID, &discordgo.MessageSend{
+			Content: "A GPU you are tracking has been updated!",
+			Embeds:  embeds,
+		})
 	}
+	log.Printf("Notifier went through %v iterations\n", iterations)
+
+	return nil
 }
 
 // Creates a new discord bot with a given configuration
